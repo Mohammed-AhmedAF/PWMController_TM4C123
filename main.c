@@ -45,10 +45,20 @@ void vidControlPWM(void)
 
 void vidReceiveCommands(void)
 {
+	static u32 u32Match = 0;
+	static u8 u8Index = 0;
+	static u8 u8Bytes[2];
 	u8ReceivedByte = UART0_u8GetReceivedByte();
-	if (u8ReceivedByte == 'a')
+	u8Bytes[u8Index] = u8ReceivedByte;
+	u8Index++;
+	if (u8Index == 2)
 	{
-		GPIO_vidTogglePin(GPIO_PORTF,GPIO_PIN0);
+					u32Match = u8Bytes[1]*500;
+					timer0BConfig.u32MatchValue = u32Match;
+					TIMERS_vidInit(&timer0BConfig);
+					GPIO_vidTogglePin(GPIO_PORTF,GPIO_PIN1);
+					u8Index = 0;
+
 	}
 
 }
@@ -95,7 +105,7 @@ int main(void)
 	GPIO_vidConfigurePin(&strctGPIOF4Config);
 	
 	ExtInterruptConfig_t strctExtIntrptF4Config;
-  strctExtIntrptF4Config.ptrFunc = vidControlPWM;	
+	strctExtIntrptF4Config.ptrFunc = vidControlPWM;	
 	strctExtIntrptF4Config.u8BothEdges = GPIO_INTERRUPT_EVENTCONTROLLED;
 	strctExtIntrptF4Config.u8InterruptSense = GPIO_SENSE_EDGE;
 	strctExtIntrptF4Config.u8InterruptEvent = GPIO_EVENT_FALLINGEDGE;
