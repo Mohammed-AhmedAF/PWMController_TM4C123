@@ -9,11 +9,13 @@
 #include "TM4C123.h"                    // Device header
 
 static volatile u8 u8CountA = 0;
-volatile u8 u8ReceivedByte = 0;
-static TIMERConfig_t timer0BConfig;
 static void vidBlink(void); 
+static TIMERConfig_t timer2Config;
 void vidControlPWM(void);
 void vidReceiveCommands(void);
+
+#define APP_MESSAGE_INDEX 0
+#define APP_MESSAGE_DUTYCYC 1
 
 static void vidBlink(void)
 {
@@ -31,15 +33,15 @@ void vidControlPWM(void)
 	GPIO_vidTogglePin(GPIO_PORTF,GPIO_PIN1);
 	if (GPIO_u8GetInterruptStatus(GPIO_PORTF,GPIO_PIN0) == STD_HIGH)
 	{
-		timer0BConfig.u32MatchValue = 25000;
-		TIMERS_vidInit(&timer0BConfig);
+		timer2Config.u32MatchValue = 25000;
+		TIMERS_vidInit(&timer2Config);
 		GPIO_vidClearInterrupt(GPIO_PORTF,GPIO_PIN0);
 	}
 	else
 	{
-	timer0BConfig.u32MatchValue = 10000;
-  TIMERS_vidInit(&timer0BConfig);
-	GPIO_vidClearInterrupt(GPIO_PORTF,GPIO_PIN4);
+		timer2Config.u32MatchValue = 10000;
+		TIMERS_vidInit(&timer2Config);
+		GPIO_vidClearInterrupt(GPIO_PORTF,GPIO_PIN4);
 	}
 }
 
@@ -47,20 +49,31 @@ void vidReceiveCommands(void)
 {
 	static u32 u32Match = 0;
 	static u8 u8Index = 0;
+	static u8 u8ReceivedByte = 0;
 	static u8 u8Bytes[2];
 	u8ReceivedByte = UART0_u8GetReceivedByte();
 	u8Bytes[u8Index] = u8ReceivedByte;
 	u8Index++;
 	if (u8Index == 2)
 	{
-					u32Match = u8Bytes[1]*500;
-					timer0BConfig.u32MatchValue = u32Match;
-					TIMERS_vidInit(&timer0BConfig);
-					GPIO_vidTogglePin(GPIO_PORTF,GPIO_PIN1);
-					u8Index = 0;
-
+		if (u8Bytes[APP_MESSAGE_INDEX] == 0)
+		{
+		GPIO_vidTogglePin(GPIO_PORTF,GPIO_PIN1);
+		timer2Config.u8TimerBlock = TIMERS_BLOCK_A;
+		u32Match = u8Bytes[APP_MESSAGE_DUTYCYC]*500;
+		timer2Config.u32MatchValue = u32Match;
+		TIMERS_vidInit(&timer2Config);
+		}
+		else if (u8Bytes[APP_MESSAGE_INDEX] == 1)
+		{
+		GPIO_vidTogglePin(GPIO_PORTF,GPIO_PIN1);
+		u32Match = u8Bytes[APP_MESSAGE_DUTYCYC]*500;
+		timer2Config.u8TimerBlock = TIMERS_BLOCK_B;
+		timer2Config.u32MatchValue = u32Match;
+		TIMERS_vidInit(&timer2Config);
+		}
+		u8Index = 0;
 	}
-
 }
 
 int main(void)
@@ -113,24 +126,32 @@ int main(void)
 	GPIO_vidConfigInterrupt(GPIO_PORTF,GPIO_PIN4,&strctExtIntrptF4Config);
 
 	/*PWM pin configuration*/
+	GPIO_vidSelectAlterFunction(GPIO_PORTB,GPIO_PIN0);
+	GPIO_vidSetPinDigEnable(GPIO_PORTB,GPIO_PIN0,GPIO_DEN_SET);
+	GPIO_vidConfigPortControl(GPIO_PORTB,GPIO_PIN0,0x7);
+	
 	GPIO_vidSelectAlterFunction(GPIO_PORTB,GPIO_PIN1);
 	GPIO_vidSetPinDigEnable(GPIO_PORTB,GPIO_PIN1,GPIO_DEN_SET);
 	GPIO_vidConfigPortControl(GPIO_PORTB,GPIO_PIN1,0x7);
 	
-	/*Timer configuration*/
-	timer0BConfig.ptrFunc = vidBlink;
-	timer0BConfig.u8TimerID = TIMERS_TIMER_2;
-	timer0BConfig.u8TimerBlock = TIMERS_BLOCK_B;
-	timer0BConfig.u16ReloadValue = 50000;
-	timer0BConfig.u32MatchValue = 10000;
-	timer0BConfig.u16PrescalerValue = 0;
-	timer0BConfig.u8Config = TIMERS_CONFIG_1632_16BIT;
-	timer0BConfig.u8PWM = TIMERS_PWM_ENABLED;
-	timer0BConfig.u8InterruptMask = TIMERS_INTERRUPT_TIMEOUT;
-	timer0BConfig.u8PWMInverted = TIMERS_PWM_INVERTED;
-	timer0BConfig.u8TimerMode = TIMERS_MODE_PERIODIC;
-	timer0BConfig.u8TimerCountDir = TIMERS_COUNTDIR_UP;
-	TIMERS_vidInit(&timer0BConfig);
+	/*Timer2 Block A configuration*/
+	timer2Config.ptrFunc = vidBlink;
+	timer2Config.u8TimerID = TIMERS_TIMER_2;
+	timer2Config.u8TimerBlock = TIMERS_BLOCK_A;
+	timer2Config.u16ReloadValue = 50000;
+	timer2Config.u32MatchValue = 10000;
+	timer2Config.u16PrescalerValue = 0;
+	timer2Config.u8Config = TIMERS_CONFIG_1632_16BIT;
+	timer2Config.u8PWM = TIMERS_PWM_ENABLED;
+	timer2Config.u8InterruptMask = TIMERS_INTERRUPT_TIMEOUT;
+	timer2Config.u8PWMInverted = TIMERS_PWM_INVERTED;
+	timer2Config.u8TimerMode = TIMERS_MODE_PERIODIC;
+	timer2Config.u8TimerCountDir = TIMERS_COUNTDIR_UP;
+	TIMERS_vidInit(&timer2Config);
+	
+	/*Timer2 Block B configuration*/
+	timer2Config.u8TimerBlock = TIMERS_BLOCK_B;
+	TIMERS_vidInit(&timer2Config);
 
 	/*UART0 pin configuration*/
 	GPIO_vidSelectAlterFunction(GPIO_PORTA,GPIO_PIN0);
@@ -144,8 +165,8 @@ int main(void)
 	UARTConfig_t strctUART0Config;
 	strctUART0Config.u8ClockSource = UART_CLOCKSOURCE_RC;
 	strctUART0Config.u8FIFOEnabled = UART_FIFO_DISABLED;
-	strctUART0Config.u16Integer = 104;
-	strctUART0Config.u8Fraction = 11;
+	strctUART0Config.u16Integer = 8;
+	strctUART0Config.u8Fraction = 44;
 	strctUART0Config.u8HighSpeedEnabled = UART_HIGHSPEED_DIV16;
 	strctUART0Config.u8RxTx = UART_RXTX_BOTH;
 	strctUART0Config.u8WordLength = UART_WORDSIZE_8;
