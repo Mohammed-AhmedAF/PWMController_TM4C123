@@ -5,12 +5,15 @@
 #include "TIMERS_interface.h"
 #include "SysTick_interface.h"
 #include "NVIC_interface.h"
+#include "UART_interface.h"
 #include "TM4C123.h"                    // Device header
 
 static volatile u8 u8CountA = 0;
+volatile u8 u8ReceivedByte = 0;
 static TIMERConfig_t timer0BConfig;
 static void vidBlink(void); 
 void vidControlPWM(void);
+void vidReceiveCommands(void);
 
 static void vidBlink(void)
 {
@@ -40,11 +43,23 @@ void vidControlPWM(void)
 	}
 }
 
+void vidReceiveCommands(void)
+{
+	u8ReceivedByte = UART0_u8GetReceivedByte();
+	if (u8ReceivedByte == 'a')
+	{
+		GPIO_vidTogglePin(GPIO_PORTF,GPIO_PIN0);
+	}
+
+}
+
 int main(void)
 {
 	/*Enabling clock for peripherals*/
 	SYSCNTRL_vidEnableGPIOClock(SYSCNTRL_GPIO_PORTF);
 	SYSCNTRL_vidEnableGPIOClock(SYSCNTRL_GPIO_PORTB);
+	SYSCNTRL_vidEnableGPIOClock(SYSCNTRL_GPIO_PORTA);
+	SYSCNTRL_vidEnableUARTClock(SYSCNTRL_UART0);
 	SYSCNTRL_vidEnableTimerClock(SYSCNTRL_TIMER_2);
 
 	/*GPIO pin configuration*/
@@ -86,7 +101,6 @@ int main(void)
 	strctExtIntrptF4Config.u8InterruptEvent = GPIO_EVENT_FALLINGEDGE;
 	strctExtIntrptF4Config.u8PullResistance = GPIO_PUR_ENABLED;
 	GPIO_vidConfigInterrupt(GPIO_PORTF,GPIO_PIN4,&strctExtIntrptF4Config);
-	//GPIO_vidLock(GPIO_PORTF);
 
 	/*PWM pin configuration*/
 	GPIO_vidSelectAlterFunction(GPIO_PORTB,GPIO_PIN1);
@@ -107,10 +121,32 @@ int main(void)
 	timer0BConfig.u8TimerMode = TIMERS_MODE_PERIODIC;
 	timer0BConfig.u8TimerCountDir = TIMERS_COUNTDIR_UP;
 	TIMERS_vidInit(&timer0BConfig);
-	
+
+	/*UART0 pin configuration*/
+	GPIO_vidSelectAlterFunction(GPIO_PORTA,GPIO_PIN0);
+	GPIO_vidSelectAlterFunction(GPIO_PORTA,GPIO_PIN1);
+	GPIO_vidSetPinDigEnable(GPIO_PORTA,GPIO_PIN0,GPIO_DEN_SET);
+	GPIO_vidSetPinDigEnable(GPIO_PORTA,GPIO_PIN1,GPIO_DEN_SET);
+	GPIO_vidConfigPortControl(GPIO_PORTA,GPIO_PIN0,0x1);
+	GPIO_vidConfigPortControl(GPIO_PORTA,GPIO_PIN1,0x1);
+
+	/*UART0 configuration*/
+	UARTConfig_t strctUART0Config;
+	strctUART0Config.u8ClockSource = UART_CLOCKSOURCE_RC;
+	strctUART0Config.u8FIFOEnabled = UART_FIFO_DISABLED;
+	strctUART0Config.u16Integer = 104;
+	strctUART0Config.u8Fraction = 11;
+	strctUART0Config.u8HighSpeedEnabled = UART_HIGHSPEED_DIV16;
+	strctUART0Config.u8RxTx = UART_RXTX_BOTH;
+	strctUART0Config.u8WordLength = UART_WORDSIZE_8;
+	strctUART0Config.u8InterruptEnabled = UART_INTERRUPT_ENABLED;
+	strctUART0Config.ptrF = vidReceiveCommands;
+	UART0_vidInit(&strctUART0Config);
+
 	/*NVIC configuration*/
 	NVIC_vidSetInterrupt(NVIC_TIMER2B);
 	NVIC_vidSetInterrupt(NVIC_GPIOF);
+	NVIC_vidSetInterrupt(NVIC_UART0);
 	
 	/*Enable global interrupt*/
 	__enable_irq();

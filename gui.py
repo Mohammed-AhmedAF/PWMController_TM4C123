@@ -46,10 +46,28 @@ portCmbox = ttk.Combobox(connectionFrame,values=["COM3","COM4","COM5","COM6","CO
 portCmbox.current(1)
 connectBtn = Button(connectionFrame,text="Connect",command=connectByUART)
 
+PWM1Frame = LabelFrame(controlFrame,text="PWM1")
+PWM1SendButton = Button(PWM1Frame,text="Send")
+PWM2Frame = LabelFrame(controlFrame,text="PWM2")
+PWM2SendButton = Button(PWM2Frame,text="Send")
+pwm1Var = DoubleVar()
+PWM1Scale = Scale(PWM1Frame,variable=pwm1Var,from_=1,to=100,orient=HORIZONTAL)
+pwm2Var = DoubleVar()
+PWM2Scale = Scale(PWM2Frame,variable=pwm2Var,from_=1,to=100,orient=HORIZONTAL)
 connectionFrame.grid(row=0,column=3,sticky=W+S+N+E,padx=5)
 controlFrame.grid(row=0,column=0,sticky=W+S+N+E,padx=5,columnspan=3)
 
 connectBtn.grid(row=2,column=0,sticky=W+E,padx=5,pady=5)
 baudrateCmbox.grid(row=1,column=0,sticky=W+E,padx=5,pady=5)
 portCmbox.grid(row=0,column=0,sticky=W+E,padx=5,pady=5)
+
+PWM1Frame.grid(row=0,column=0)
+PWM1SendButton.grid(row=0,column=1)
+PWM1Scale.grid(row=0,column=0)
+PWM2Frame.grid(row=1,column=0)
+PWM2SendButton.grid(row=0,column=1)
+PWM2Scale.grid(row=0,column=0)
+
+statusLabel.grid(row=2,column=0,sticky=W+E,columnspan=3,padx=5)
+
 root.mainloop()
