@@ -3,6 +3,14 @@ import tkinter as tk
 from tkinter import ttk
 import platform
 import serial
+import time
+
+def sendPWM1():
+    pwmVarInt = int(pwm1Var.get())
+    print(pwmVarInt)
+    ser.write(b'a')
+    time.sleep(0.20)
+    ser.write(pwmVarInt.to_bytes(1,'little'))
 
 def connectByUART() -> None:
     global ser
@@ -47,7 +55,7 @@ portCmbox.current(1)
 connectBtn = Button(connectionFrame,text="Connect",command=connectByUART)
 
 PWM1Frame = LabelFrame(controlFrame,text="PWM1")
-PWM1SendButton = Button(PWM1Frame,text="Send")
+PWM1SendButton = Button(PWM1Frame,text="Send",command=sendPWM1)
 PWM2Frame = LabelFrame(controlFrame,text="PWM2")
 PWM2SendButton = Button(PWM2Frame,text="Send")
 pwm1Var = DoubleVar()
