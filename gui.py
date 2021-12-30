@@ -9,9 +9,14 @@ from functools import partial
 
 def sendPWM(pwmID):
     pwmVarInt = int(pwmList[pwmID].get())
-    ser.write(pwmID.to_bytes(1,'little'))
-    time.sleep(0.1)
-    ser.write(pwmVarInt.to_bytes(1,'little'))
+    try:
+        ser.write(pwmID.to_bytes(1,'little'))
+        time.sleep(0.1)
+        ser.write(pwmVarInt.to_bytes(1,'little'))
+    except serial.serialutil.SerialException:
+        statusLabel['text'] = "Serial port is not opened!"
+
+
 
 def connectByUART() -> None:
     global ser
@@ -62,7 +67,7 @@ disconnectBtn = Button(connectionFrame,text="Disconnect",command=disconnectUART)
 
 PWM1Frame = LabelFrame(controlFrame,text="PWM1")
 PWM1SendButton = Button(PWM1Frame,text="Send",command=partial(sendPWM,0))
-PWM2Frame = LabelFrame(controlFrame,text="PWM2")
+PWM2Frame = LabelFrame(controlFrame,text="PWM2") 
 PWM2SendButton = Button(PWM2Frame,text="Send",command=partial(sendPWM,1))
 pwm1Var = DoubleVar()
 pwmList = [DoubleVar(), DoubleVar()]
